@@ -1,0 +1,124 @@
+	#ifDef proc::xPblze6
+	#set proc::xPblze6::scrpdSize, 128 ; [64, 128, 256]
+	#set proc::xPblze6::clkFreq, 100000000 ; in Hz
+	#set IOdev::BRAM0::en, TRUE
+	#set IOdev::BRAM0::type, mem
+	#set IOdev::BRAM0::size, 4096
+	#set instmem::pageSize, 4096
+	#set instmem::pageCount, 1
+	#set instmem::sharedMemLocation, loMem ; [ hiMem, loMem ]
+	#set IOdev::BRAM0::value, instMem
+	#set IOdev::BRAM0::vhdlEn, TRUE
+	#set IOdev::BRAM0::vhdlEntityName, "BRAM0"
+	#set IOdev::BRAM0::vhdlTmplFile, "ROM_form.vhd"
+	#set IOdev::BRAM0::vhdlTargetFile, "BRAM0.vhd"
+	#endIf
+	;Ataberk Demirkaya 040200252 
+	#ORG ADDR, 0x000
+	
+	
+	
+	;implementing for 4x4 matrix --> Game of Life
+		LOAD sF, 0x00 ; begins writing the map from here
+maploop:	RDPRT s0, 0x01
+		WRMEM s0, (sF)
+		ADD sF, 1
+		COMP sF, 128 ;draws the map
+		JUMP C, maploop
+		LOAD sF, 0x09 ;resets the pointer to start
+		
+checkloop: 		RDMEM s0, (sF);write the pointer value to register 0
+		COMP s0, 1 ;determines whether the values is 0 or 1
+		JUMP C, zero
+		JUMP NC, one
+		
+zero:	LOAD sE, sF ;temp pointer
+		LOAD sA, 1 ;indicating operation is on 0
+		JUMP right
+		
+one:	LOAD sE, sF ;temp pointer
+		LOAD sB, 1 ;indicating operation is on 1
+		JUMP right
+		
+right:	ADD sE, 1
+		RDMEM s2, (sE)
+		ADD s3, s2
+		LOAD sE,sF
+		JUMP down
+		
+rightup:SUB sE, 7
+		RDMEM s2, (sE)
+		ADD s3, s2
+		LOAD sE,sF
+		JUMP down
+
+down: 	ADD sE, 8
+		RDMEM s2, (sE)
+		ADD s3, s2
+		LOAD sE,sF
+		JUMP downright
+		
+downright:	ADD sE, 9
+		RDMEM s2, (sE)
+		ADD s3, s2
+		LOAD sE,sF
+		JUMP left
+		
+left:	SUB sE, 1
+		RDMEM s2, (sE)
+		ADD s3, s2
+		LOAD sE, sF
+		JUMP downleft
+		
+downleft: ADD sE, 7
+		RDMEM s2, (sE)
+		ADD s3, s2
+		LOAD sE,sF
+		JUMP leftup
+		
+leftup: SUB sE, 9
+		RDMEM s2, (sE)
+		ADD s3, s2
+		LOAD sE,sF
+		JUMP up
+		
+up:		SUB sE, 8
+		RDMEM s2, (sE)
+		ADD s3, s2
+		LOAD sE,sF
+		COMP sA, 1 ;choose which result to select
+		JUMP Z, resultzero
+		COMP sB, 1
+		JUMP Z, resultone
+		
+resultzero: COMP s3, 3
+			JUMP Z, effectzero
+			ADD sF, 1
+			LOAD s3, 0
+			LOAD sA, 0
+			JUMP checkloop
+			
+resultone: 	COMP s3, 2
+			JUMP Z, effectone
+			COMP s3, 3
+			JUMP Z, effectone
+			ADD sE, 64
+			WRMEM s9, (sE)
+			LOAD sE, 0
+			ADD sF, 1
+			LOAD s3, 0
+			LOAD sB, 0
+			JUMP checkloop
+			
+effectzero: ADD sE, 64 ;if there is a change in zero this loop activates
+			LOAD sE, 1
+			ADD sF, 1
+			LOAD s3, 0
+			LOAD sA, 0
+			JUMP checkloop
+			
+effectone:  ADD sF, 1 ;if there is a change in one this loop activates
+			LOAD s3, 0
+			LOAD sB, 0
+			JUMP checkloop
+	
